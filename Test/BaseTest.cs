@@ -2,6 +2,7 @@
 using Microsoft.Playwright;
 using NUnit.Framework.Interfaces;
 using PlaywrightShowcase.Configuration;
+using PlaywrightShowcase.Utils.Extensions;
 
 namespace PlaywrightShowcase.Test;
 
@@ -27,12 +28,8 @@ public class BaseTest
         await InitBrowserContext();
 
         BrowserContext.SetDefaultTimeout(DefaultTimeout);
-        await BrowserContext.Tracing.StartAsync(new()
-        {
-            Screenshots = true,
-            Snapshots = true,
-            Sources = true
-        });
+
+        await BrowserContext.StartTracingAsync();
 
         Page = await BrowserContext.NewPageAsync();
         await Page.GotoAsync("https://playwright.dev/");
@@ -48,10 +45,7 @@ public class BaseTest
 
     private async Task ManageArtifacts()
     {
-        await BrowserContext.Tracing.StopAsync(new()
-        {
-            Path = $"{LogsFolder}/{TestContext.CurrentContext.Test.Name}-trace.zip"
-        });
+        await BrowserContext.StopTracingAsync($"{LogsFolder}/{TestContext.CurrentContext.Test.Name}-trace.zip");
 
         if (TestContext.CurrentContext.Result.Outcome.Status == TestStatus.Failed)
         {
@@ -72,9 +66,7 @@ public class BaseTest
     {
         var playwright = await Playwright.CreateAsync();
 
-        Browser = await GetBrowser(
-            TestSettings,
-            playwright);
+        Browser = await GetBrowser(playwright);
         
         BrowserContext = await Browser.NewContextAsync(
             new BrowserNewContextOptions
@@ -84,16 +76,16 @@ public class BaseTest
             });
     }
 
-    private async Task<IBrowser> GetBrowser(TestSettings settings, IPlaywright playwright)
+    private async Task<IBrowser> GetBrowser(IPlaywright playwright)
     {
         var options = new BrowserTypeLaunchOptions()
         {
-            Headless = settings.RunConfiguration.IsHeadlessBrowser,
+            Headless = TestSettings.RunConfiguration.IsHeadlessBrowser,
             Args = ["--start-maximized"],
             TracesDir = LogsFolder
         };
 
-        switch (settings.RunConfiguration.BrowserUnderTest)
+        switch (TestSettings.RunConfiguration.BrowserUnderTest)
         {
             case "Chrome":
                 options.Channel = "chrome";
