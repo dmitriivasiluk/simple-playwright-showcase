@@ -9,8 +9,8 @@ public class BaseTest
 {
     public Faker Faker;
     public TestSettings TestSettings;
-    public IBrowser Browser;
-    public IBrowserContext BrowserContext;
+    public IBrowser Browser = default!;
+    public IBrowserContext BrowserContext = default!;
     public IPage Page;
     private readonly string LogsFolder = "logs";
     private int DefaultTimeout = 5000;
@@ -24,18 +24,8 @@ public class BaseTest
     [SetUp]
     public async Task BeforeTest()
     {
-        var playwright = await Playwright.CreateAsync();
+        await InitBrowserContext();
 
-        Browser = await GetBrowser(
-            TestSettings.RunConfiguration.BrowserUnderTest, 
-            playwright, 
-            TestSettings.RunConfiguration.IsHeadlessBrowser);
-        BrowserContext = await Browser.NewContextAsync(
-            new BrowserNewContextOptions
-            {
-                ViewportSize = ViewportSize.NoViewport,
-                BaseURL = "https://playwright.dev/"
-            });
         BrowserContext.SetDefaultTimeout(DefaultTimeout);
         await BrowserContext.Tracing.StartAsync(new()
         {
@@ -78,15 +68,32 @@ public class BaseTest
         }
     }
 
-    private async Task<IBrowser> GetBrowser(string browserName, IPlaywright playwright, bool isHeadless = true)
+    private async Task InitBrowserContext()
+    {
+        var playwright = await Playwright.CreateAsync();
+
+        Browser = await GetBrowser(
+            TestSettings,
+            playwright);
+        
+        BrowserContext = await Browser.NewContextAsync(
+            new BrowserNewContextOptions
+            {
+                ViewportSize = ViewportSize.NoViewport,
+                BaseURL = "https://playwright.dev/"
+            });
+    }
+
+    private async Task<IBrowser> GetBrowser(TestSettings settings, IPlaywright playwright)
     {
         var options = new BrowserTypeLaunchOptions()
         {
-            Headless = isHeadless,
+            Headless = settings.RunConfiguration.IsHeadlessBrowser,
             Args = ["--start-maximized"],
             TracesDir = LogsFolder
         };
-        switch (browserName)
+
+        switch (settings.RunConfiguration.BrowserUnderTest)
         {
             case "Chrome":
                 options.Channel = "chrome";
